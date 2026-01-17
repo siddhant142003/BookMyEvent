@@ -1,112 +1,79 @@
-import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { CalendarDays, TicketIcon, ScanLine, ArrowRight, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-
-const roleCards = [
-  {
-    role: 'organizer',
-    title: 'Event Organizer',
-    description: 'Create events, manage tickets, and track sales in real-time.',
-    icon: CalendarDays,
-    features: ['Create & manage events', 'Configure ticket types', 'Monitor sales analytics'],
-    gradient: 'from-primary to-primary/80',
-  },
-  {
-    role: 'attendee',
-    title: 'Event Attendee',
-    description: 'Discover events, purchase tickets, and access your QR codes.',
-    icon: TicketIcon,
-    features: ['Browse upcoming events', 'Secure ticket purchase', 'Digital QR tickets'],
-    gradient: 'from-accent to-accent/80',
-  },
-  {
-    role: 'staff',
-    title: 'Event Staff',
-    description: 'Scan and validate tickets at venue entry points.',
-    icon: ScanLine,
-    features: ['QR code scanner', 'Real-time validation', 'Entry tracking'],
-    gradient: 'from-success to-success/80',
-  },
-];
+import { useNavigate } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
+import { useState } from "react";
+import { UserAPI } from "@/lib/api/user.api";
+import { AuthAPI } from "@/lib/api/auth.api";
 
 export default function RoleSelection() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+
+      const handleGoogleLogin = async (
+          credentialResponse: string,
+          role: string
+      ) => {
+        try {
+          setLoading(true);
+
+          const idToken = credentialResponse;
+
+          if (!idToken) {
+            alert("Google did not return idToken");
+            return;
+          }
+
+            const user = await AuthAPI.loginWithGoogle(idToken, role);
+
+            localStorage.setItem("user", JSON.stringify(user));
+
+          if (role === "ORGANIZER") navigate("/organizer");
+          if (role === "ATTENDEE") navigate("/attendee");
+          if (role === "STAFF") navigate("/staff");
+        } catch (err) {
+          console.error(err);
+          alert("Google login failed");
+        } finally {
+          setLoading(false);
+        }
+      };
+
   return (
-    <div className="min-h-screen hero-gradient text-primary-foreground">
-      <div className="container py-16 md:py-24">
-        {/* Hero Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 text-accent mb-6">
-            <Sparkles className="h-4 w-4" />
-            <span className="text-sm font-medium">Event Ticketing Platform</span>
-          </div>
-          <h1 className="text-4xl md:text-6xl font-display font-bold mb-6 tracking-tight">
-            Welcome to <span className="gradient-text">TicketHub</span>
-          </h1>
-          <p className="text-lg md:text-xl text-primary-foreground/70 max-w-2xl mx-auto">
-            The complete event management platform. Create, sell, and validate tickets with ease.
-          </p>
-        </motion.div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white flex flex-col items-center justify-center">
+        <h1 className="text-4xl font-bold mb-8">
+          Welcome to <span className="text-orange-500">BookMyEvent</span>
+        </h1>
 
-        {/* Role Cards */}
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {roleCards.map((card, index) => {
-            const Icon = card.icon;
-            return (
-              <motion.div
-                key={card.role}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
+          {["ORGANIZER", "ATTENDEE", "STAFF"].map((role) => (
+              <div
+                  key={role}
+                  className="bg-white text-black rounded-xl p-6 shadow-lg"
               >
-                <Link to={`/${card.role}`}>
-                  <div className="group relative h-full overflow-hidden rounded-2xl bg-card text-card-foreground p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-                    {/* Icon */}
-                    <div className={`inline-flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br ${card.gradient} mb-4`}>
-                      <Icon className="h-7 w-7 text-primary-foreground" />
-                    </div>
+                <h2 className="text-xl font-semibold mb-2">
+                  {role.replace("_", " ")}
+                </h2>
 
-                    {/* Content */}
-                    <h3 className="text-xl font-display font-bold mb-2">{card.title}</h3>
-                    <p className="text-muted-foreground mb-6">{card.description}</p>
+                  <GoogleLogin
+                      onSuccess={(res) => {
+                          console.log("Google success response:", res);
 
-                    {/* Features */}
-                    <ul className="space-y-2 mb-6">
-                      {card.features.map((feature) => (
-                        <li key={feature} className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <div className="h-1.5 w-1.5 rounded-full bg-accent" />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
+                          if (!res.credential) {
+                              alert("No credential received from Google");
+                              return;
+                          }
 
-                    {/* CTA */}
-                    <Button variant="ghost" className="group-hover:bg-secondary gap-2">
-                      Enter Portal
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </Button>
-                  </div>
-                </Link>
-              </motion.div>
-            );
-          })}
+                          handleGoogleLogin(res.credential, role);
+                      }}
+                      onError={() => {
+                          console.error("Google OAuth error");
+                          alert("Google login failed");
+                      }}
+                  />
+              </div>
+          ))}
         </div>
 
-        {/* Footer note */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.8 }}
-          className="text-center text-primary-foreground/50 text-sm mt-16"
-        >
-          Select your role to continue. You can switch roles anytime from your profile menu.
-        </motion.p>
+        {loading && <p className="mt-6 text-sm">Signing you in…</p>}
       </div>
-    </div>
   );
 }

@@ -1,18 +1,13 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { format } from 'date-fns';
-import { CalendarDays, MapPin, DollarSign, Users, Plus, Trash2, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -20,220 +15,225 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Plus } from 'lucide-react';
 
-interface TicketTypeForm {
-  id: string;
+import { EventAPI } from '@/lib/api/event.api';
+
+interface CreateEventFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+interface TicketType {
   name: string;
   price: string;
   quantity: string;
-  description: string;
 }
 
-interface CreateEventFormProps {
-  trigger?: React.ReactNode;
-}
+export function CreateEventForm({
+                                  open,
+                                  onOpenChange,
+                                }: CreateEventFormProps) {
+  // 🔹 Event fields
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
+  const [venue, setVenue] = useState('');
+  const [status, setStatus] = useState<'draft' | 'published'>('draft');
 
-export function CreateEventForm({ trigger }: CreateEventFormProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [ticketTypes, setTicketTypes] = useState<TicketTypeForm[]>([
-    { id: '1', name: 'General Admission', price: '50', quantity: '100', description: '' }
+  // 🔹 Ticket types (UI only for now)
+  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([
+    { name: '', price: '', quantity: '' },
   ]);
 
   const addTicketType = () => {
     setTicketTypes([
       ...ticketTypes,
-      { id: Date.now().toString(), name: '', price: '', quantity: '', description: '' }
+      { name: '', price: '', quantity: '' },
     ]);
   };
 
-  const removeTicketType = (id: string) => {
-    if (ticketTypes.length > 1) {
-      setTicketTypes(ticketTypes.filter(tt => tt.id !== id));
+  const updateTicketType = (
+      index: number,
+      field: keyof TicketType,
+      value: string
+  ) => {
+    const updated = [...ticketTypes];
+    updated[index][field] = value;
+    setTicketTypes(updated);
+  };
+
+  // 🔹 Submit handler (BACKEND INTEGRATION)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const totalTickets = ticketTypes.reduce(
+          (sum, t) => sum + Number(t.quantity || 0),
+          0
+      );
+
+      await EventAPI.createEvent({
+        title: name,
+        location: venue,
+        eventDate: start,
+        totalTickets,
+        organizer: {
+          id: 1, // ⚠️ Replace later with logged-in organizer ID
+        },
+      });
+
+      // Reset form
+      setName('');
+      setDescription('');
+      setStart('');
+      setEnd('');
+      setVenue('');
+      setTicketTypes([{ name: '', price: '', quantity: '' }]);
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Failed to create event:', error);
+      alert('Failed to create event');
     }
   };
 
-  const updateTicketType = (id: string, field: keyof TicketTypeForm, value: string) => {
-    setTicketTypes(ticketTypes.map(tt => 
-      tt.id === id ? { ...tt, [field]: value } : tt
-    ));
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="hero" size="lg" className="gap-2">
-            <Plus className="h-5 w-5" />
-            Create New Event
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-display">Create New Event</DialogTitle>
-        </DialogHeader>
-        
-        <form className="space-y-6 py-4">
-          {/* Basic Info */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <CalendarDays className="h-5 w-5 text-accent" />
-              Event Details
-            </h3>
-            
-            <div className="space-y-4">
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create New Event</DialogTitle>
+          </DialogHeader>
+
+          <form className="space-y-6 py-4" onSubmit={handleSubmit}>
+            {/* Event Name */}
+            <div>
+              <label className="text-sm font-medium">Event Name</label>
+              <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter event name"
+                  required
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="text-sm font-medium">Description</label>
+              <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe your event"
+              />
+            </div>
+
+            {/* Date & Time */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="name">Event Name *</Label>
-                <Input id="name" placeholder="Enter event name" className="mt-1.5" />
-              </div>
-              
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea 
-                  id="description" 
-                  placeholder="Describe your event..."
-                  className="mt-1.5 min-h-[100px]"
+                <label className="text-sm font-medium">Start Date & Time</label>
+                <Input
+                    type="datetime-local"
+                    value={start}
+                    onChange={(e) => setStart(e.target.value)}
+                    required
                 />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="start">Start Date & Time *</Label>
-                  <Input id="start" type="datetime-local" className="mt-1.5" />
-                </div>
-                <div>
-                  <Label htmlFor="end">End Date & Time *</Label>
-                  <Input id="end" type="datetime-local" className="mt-1.5" />
-                </div>
+              <div>
+                <label className="text-sm font-medium">End Date & Time</label>
+                <Input
+                    type="datetime-local"
+                    value={end}
+                    onChange={(e) => setEnd(e.target.value)}
+                    required
+                />
               </div>
             </div>
-          </div>
 
-          {/* Venue */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-accent" />
-              Venue
-            </h3>
-            <Input placeholder="Venue name or address" />
-          </div>
-
-          {/* Ticket Types */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-accent" />
-                Ticket Types
-              </h3>
-              <Button type="button" variant="outline" size="sm" onClick={addTicketType} className="gap-1">
-                <Plus className="h-4 w-4" />
-                Add Type
-              </Button>
+            {/* Venue */}
+            <div>
+              <label className="text-sm font-medium">Venue</label>
+              <Input
+                  value={venue}
+                  onChange={(e) => setVenue(e.target.value)}
+                  placeholder="Event venue"
+                  required
+              />
             </div>
-            
-            <div className="space-y-4">
+
+            {/* Status */}
+            <div>
+              <label className="text-sm font-medium">Event Status</label>
+              <Select
+                  value={status}
+                  onValueChange={(value) =>
+                      setStatus(value as 'draft' | 'published')
+                  }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Ticket Types */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium">Ticket Types</label>
+                <Button type="button" variant="outline" onClick={addTicketType}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Ticket Type
+                </Button>
+              </div>
+
               {ticketTypes.map((ticket, index) => (
-                <motion.div
-                  key={ticket.id}
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="rounded-lg border border-border bg-secondary/30 p-4 space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">
-                      Ticket Type {index + 1}
-                    </span>
-                    {ticketTypes.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => removeTicketType(ticket.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="col-span-3 sm:col-span-1">
-                      <Input
-                        placeholder="Type name"
+                  <div key={index} className="grid grid-cols-3 gap-4 mb-2">
+                    <Input
+                        placeholder="Ticket Name"
                         value={ticket.name}
-                        onChange={(e) => updateTicketType(ticket.id, 'name', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                        <Input
-                          type="number"
-                          placeholder="Price"
-                          className="pl-7"
-                          value={ticket.price}
-                          onChange={(e) => updateTicketType(ticket.id, 'price', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Input
+                        onChange={(e) =>
+                            updateTicketType(index, 'name', e.target.value)
+                        }
+                    />
+                    <Input
+                        type="number"
+                        placeholder="Price"
+                        value={ticket.price}
+                        onChange={(e) =>
+                            updateTicketType(index, 'price', e.target.value)
+                        }
+                    />
+                    <Input
                         type="number"
                         placeholder="Quantity"
                         value={ticket.quantity}
-                        onChange={(e) => updateTicketType(ticket.id, 'quantity', e.target.value)}
-                      />
-                    </div>
+                        onChange={(e) =>
+                            updateTicketType(index, 'quantity', e.target.value)
+                        }
+                    />
                   </div>
-                </motion.div>
               ))}
             </div>
-          </div>
 
-          {/* Sales Period */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Users className="h-5 w-5 text-accent" />
-              Sales Period
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="salesStart">Sales Start</Label>
-                <Input id="salesStart" type="datetime-local" className="mt-1.5" />
-              </div>
-              <div>
-                <Label htmlFor="salesEnd">Sales End</Label>
-                <Input id="salesEnd" type="datetime-local" className="mt-1.5" />
-              </div>
+            {/* Actions */}
+            <div className="flex justify-end gap-3">
+              <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" variant="hero">
+                Create Event
+              </Button>
             </div>
-          </div>
-
-          {/* Status */}
-          <div className="space-y-2">
-            <Label>Event Status</Label>
-            <Select defaultValue="draft">
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="published">Published</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t border-border">
-            <Button type="button" variant="outline" className="flex-1" onClick={() => setIsOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="hero" className="flex-1">
-              Create Event
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </DialogContent>
+      </Dialog>
   );
 }
