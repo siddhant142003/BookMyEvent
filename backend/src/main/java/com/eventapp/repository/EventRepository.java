@@ -1,6 +1,7 @@
 package com.eventapp.repository;
 
 import com.eventapp.domain.Event;
+import com.eventapp.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -16,5 +17,5 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     @Query("select e from Event e where e.id = :id")
     Optional<Event> findByIdForUpdate(Long id);
 
-    List<Event> findByOrganizerId(Long organizerId);
+    List<Event> findByOrganizer(User organizer);
 }

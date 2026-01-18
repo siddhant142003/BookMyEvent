@@ -34,11 +34,13 @@ export interface Event {
     description?: string;
     location: string;
     eventDate: string;
+    startDate: string;
+    endDate: string;
 
     totalTickets: number;
     availableTickets: number;
 
-    organizerId: number; // ✅ REQUIRED for filtering
+    organizerId: number;
 }
 
 export class Event {

@@ -8,6 +8,7 @@ import OrganizerDashboard from "./pages/organizer/OrganizerDashboard";
 import AttendeeDashboard from "./pages/attendee/AttendeeDashboard";
 import StaffDashboard from "./pages/staff/StaffDashboard";
 import NotFound from "./pages/NotFound";
+import CreateEvent from "./pages/organizer/CreateEvent";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/organizer" element={<OrganizerDashboard />} />
           <Route path="/organizer/events" element={<OrganizerDashboard />} />
           <Route path="/organizer/analytics" element={<OrganizerDashboard />} />
+          <Route path="/organizer/create" element={<CreateEvent />} />
           {/* Attendee Routes */}
           <Route path="/attendee" element={<AttendeeDashboard />} />
           <Route path="/attendee/tickets" element={<AttendeeDashboard />} />

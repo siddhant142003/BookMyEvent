@@ -33,22 +33,18 @@ export default function OrganizerDashboard() {
   useEffect(() => {
     if (!user) return;
 
-    const loadEvents = async () => {
+    const fetchEvents = async () => {
       try {
-        const allEvents = await EventAPI.getAllEvents();
-
-        // 🔹 Show only events created by this organizer
-        const myEvents = allEvents.filter(
-            (e) => e.organizerId === user.id
-        );
-
-        setEvents(myEvents);
+        const data = await EventAPI.getEventsByOrganizer(user.id);
+        setEvents(data);
+      } catch (err) {
+        console.error("Failed to fetch events", err);
       } finally {
         setLoading(false);
       }
     };
 
-    loadEvents();
+    fetchEvents();
   }, [user]);
 
   const totalTicketsSold = events.reduce(

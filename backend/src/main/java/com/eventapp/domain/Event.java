@@ -17,10 +17,13 @@ public class Event {
     private Long id;
 
     private String title;
+    private String description;
 
     private String location;
 
     private LocalDateTime eventDate;
+    private LocalDateTime startDate;
+    private LocalDateTime endDate;
 
     private int totalTickets;
 
