@@ -29,7 +29,6 @@ import type { Event as BackendEvent } from "@/types/backend";
 import type { UIEvent } from "@/types/ui-event";
 
 export function AttendeeDashboard() {
-  const userTickets: Ticket[] = [];
   const [activeTab, setActiveTab] = useState<'discover' | 'tickets'>('discover');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<{
@@ -40,8 +39,25 @@ export function AttendeeDashboard() {
 
   const user = JSON.parse(localStorage.getItem("user") || "null");
 
-  const [events, setEvents] = useState<UIEvent[]>([]);
+  const [events, setEvents] = useState<BackendEvent[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [userTickets, setUserTickets] = useState<Ticket[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchMyTickets = async () => {
+      try {
+        const tickets = await TicketAPI.getMyTickets(user.id);
+        setUserTickets(tickets);
+      } catch (err) {
+        console.error("Failed to fetch tickets", err);
+      }
+    };
+
+    fetchMyTickets();
+  }, [user]);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -67,7 +83,7 @@ export function AttendeeDashboard() {
           ],
         }));
 
-        setEvents(mappedEvents);
+        setEvents(data);
       } catch (err) {
         console.error("Failed to fetch events", err);
       } finally {
@@ -80,8 +96,8 @@ export function AttendeeDashboard() {
 
   const filteredEvents = events.filter(
       (event) =>
-          event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          event.venue.toLowerCase().includes(searchQuery.toLowerCase())
+          event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          event.location.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleBookTicket = async (eventId: number) => {
@@ -171,8 +187,8 @@ export function AttendeeDashboard() {
                           <EventCard
                                 key={event.id}
                                 event={event}
-                                variant="featured"
-                                delay={index * 0.1}
+                                //variant="featured"
+                                //delay={index * 0.1}
                                 actionLabel="Get Tickets"
                                 onAction={() => handleBookTicket(event.id)}
                           />
@@ -182,27 +198,60 @@ export function AttendeeDashboard() {
               </motion.div>
           ) : (
               <motion.div
-                  initial={{opacity: 0}}
-                  animate={{opacity: 1}}
-                  transition={{duration: 0.3}}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
                   className="space-y-4"
               >
                 {userTickets.length === 0 ? (
                     <div className="text-center py-16">
-                      <TicketIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4"/>
-                      <h3 className="text-lg font-semibold mb-2">No tickets yet</h3>
-                      <p className="text-muted-foreground mb-4">Discover events and get your first ticket!</p>
-                      <Button variant="accent" onClick={() => setActiveTab('discover')}>
-                        Browse Events
-                      </Button>
-                    </div>
-                ) : (
-                    <div className="text-center py-16">
-                      <TicketIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4"/>
+                      <TicketIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                       <h3 className="text-lg font-semibold mb-2">No tickets yet</h3>
                       <p className="text-muted-foreground mb-4">
-                        Ticket history will appear here after booking.
+                        Book an event to see your tickets here.
                       </p>
+                    </div>
+                ) : (
+                    <div className="grid md:grid-cols-2 gap-6">
+                      {userTickets.map((ticket, index) => {
+                        const event = events.find(e => String(e.id) === String(ticket.eventId));
+
+                        if (!event) return null;
+
+                        const uiEvent: UIEvent = {
+                          id: event.id,
+                          name: event.title,
+                          description: event.description,
+                          venue: event.location,
+                          start: new Date(event.startDate),
+                          end: new Date(event.endDate),
+                          status: "published",
+                          ticketTypes: [
+                            {
+                              id: 1,
+                              name: "General",
+                              price: 0,
+                              totalAvailable: event.totalTickets,
+                              sold: event.totalTickets - event.availableTickets,
+                            },
+                          ],
+                        };
+
+                        const ticketType = uiEvent.ticketTypes[0];
+
+                        return (
+                            <TicketCard
+                                key={ticket.id}
+                                ticket={ticket}
+                                event={uiEvent}
+                                ticketType={ticketType}
+                                delay={index * 0.1}
+                                onViewQR={() =>
+                                    setSelectedTicket({ ticket, event: uiEvent, ticketType })
+                                }
+                            />
+                        );
+                      })}
                     </div>
                 )}
               </motion.div>

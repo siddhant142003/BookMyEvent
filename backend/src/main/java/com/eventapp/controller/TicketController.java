@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 import org.springframework.web.server.ResponseStatusException;
 import static org.springframework.http.HttpStatus.*;
@@ -34,6 +35,12 @@ public class    TicketController {
     ) {
         return ResponseEntity.ok(ticketService.bookTicket(eventId, attendeeId));
     }
+
+    @GetMapping("/attendee/{attendeeId}")
+    public List<Ticket> getTicketsByAttendee(@PathVariable Long attendeeId) {
+        return ticketRepository.findByAttendeeId(attendeeId);
+    }
+
 
     // ✅ VALIDATE TICKET
     @GetMapping("/validate/{qrCode}")

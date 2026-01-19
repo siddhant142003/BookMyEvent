@@ -31,16 +31,19 @@ export interface BackendTicket {
 export interface Event {
     id: number;
     title: string;
-    description?: string;
+    description: string;
     location: string;
     eventDate: string;
     startDate: string;
     endDate: string;
-
+    status: string;
     totalTickets: number;
     availableTickets: number;
-
-    organizerId: number;
+    organizer: {
+        id: number;
+        name: string;
+        email: string;
+    };
 }
 
 export class Event {

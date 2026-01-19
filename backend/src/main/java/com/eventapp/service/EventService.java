@@ -33,6 +33,7 @@ public class EventService {
         event.setTotalTickets(request.getTotalTickets());
         event.setAvailableTickets(request.getTotalTickets()); // backend rule
         event.setOrganizer(organizer);
+        event.setStatus("published");
 
         return eventRepository.save(event);
     }
