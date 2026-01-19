@@ -18,48 +18,28 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TicketService {
 
+    private final TicketRepository ticketRepository;
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
-    private final TicketRepository ticketRepository;
 
-    @Transactional
-    public Ticket bookTicket(Long eventId, Long userId) {
-
-        Event event = eventRepository.findByIdForUpdate(eventId)
+    public Ticket bookTicket(Long eventId, Long attendeeId) {
+        Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
 
         if (event.getAvailableTickets() <= 0) {
-            throw new RuntimeException("Tickets sold out");
+            throw new RuntimeException("Sold out");
         }
 
-        User user = userRepository.findById(userId)
+        User attendee = userRepository.findById(attendeeId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-
-        event.setAvailableTickets(event.getAvailableTickets() - 1);
 
         Ticket ticket = new Ticket();
         ticket.setEvent(event);
-        ticket.setAttendee(user);
+        ticket.setAttendee(attendee);
 
-        String qrCode = UUID.randomUUID().toString();
-        ticket.setQrCode(qrCode);
-        ticket.setCheckedIn(false);
-
-        ticketRepository.save(ticket);
+        event.setAvailableTickets(event.getAvailableTickets() - 1);
         eventRepository.save(event);
 
-        // 🔹 Generate QR Image
-        try {
-            String dir = "qr-codes";
-            new File(dir).mkdirs();
-
-            String filePath = dir + "/ticket-" + ticket.getId() + ".png";
-            QrCodeGenerator.generateQRCodeImage(qrCode, filePath);
-
-        } catch (Exception e) {
-            throw new RuntimeException("QR code generation failed");
-        }
-
-        return ticket;
+        return ticketRepository.save(ticket);
     }
 }

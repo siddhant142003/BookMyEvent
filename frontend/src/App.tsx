@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import RoleSelection from "./pages/RoleSelection";
 import OrganizerDashboard from "./pages/organizer/OrganizerDashboard";
-import AttendeeDashboard from "./pages/attendee/AttendeeDashboard";
+import {AttendeeDashboard} from "./pages/attendee/AttendeeDashboard";
 import StaffDashboard from "./pages/staff/StaffDashboard";
 import NotFound from "./pages/NotFound";
 import CreateEvent from "./pages/organizer/CreateEvent";

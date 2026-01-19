@@ -28,11 +28,11 @@ public class    TicketController {
 
     // ✅ BOOK TICKET
     @PostMapping("/book")
-    public Ticket bookTicket(
+    public ResponseEntity<Ticket> bookTicket(
             @RequestParam Long eventId,
-            @RequestParam Long userId
+            @RequestParam Long attendeeId
     ) {
-        return ticketService.bookTicket(eventId, userId);
+        return ResponseEntity.ok(ticketService.bookTicket(eventId, attendeeId));
     }
 
     // ✅ VALIDATE TICKET
