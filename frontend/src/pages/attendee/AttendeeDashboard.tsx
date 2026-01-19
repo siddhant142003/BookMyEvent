@@ -22,7 +22,9 @@ import {
   Download
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { Ticket, Event, TicketType } from '@/types';
+import type { Ticket } from '@/types/backend';
+import type { Event } from '@/types/backend';
+import type { TicketType } from '@/types';
 import {AttendeeAPI} from "@/lib/api/attendee.api.ts";
 import { TicketAPI } from "@/lib/api/ticket.api";
 import type { Event as BackendEvent } from "@/types/backend";
@@ -33,7 +35,7 @@ export function AttendeeDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<{
     ticket: Ticket;
-    event: Event;
+    event: UIEvent;
     ticketType: TicketType;
   } | null>(null);
 
@@ -214,7 +216,7 @@ export function AttendeeDashboard() {
                 ) : (
                     <div className="grid md:grid-cols-2 gap-6">
                       {userTickets.map((ticket, index) => {
-                        const event = events.find(e => String(e.id) === String(ticket.eventId));
+                        const event = ticket.event;
 
                         if (!event) return null;
 
@@ -228,7 +230,7 @@ export function AttendeeDashboard() {
                           status: "published",
                           ticketTypes: [
                             {
-                              id: 1,
+                              id: "general",
                               name: "General",
                               price: 0,
                               totalAvailable: event.totalTickets,
@@ -257,6 +259,38 @@ export function AttendeeDashboard() {
               </motion.div>
           )}
         </main>
+
+        {/* ===== QR MODAL (ADD THIS) ===== */}
+        <Dialog
+            open={!!selectedTicket}
+            onOpenChange={() => setSelectedTicket(null)}
+        >
+          <DialogContent className="max-w-sm text-center">
+            <DialogHeader>
+              <DialogTitle>Ticket QR Code</DialogTitle>
+            </DialogHeader>
+
+            {selectedTicket && (
+                <div className="flex flex-col items-center gap-4">
+                  <h3 className="font-semibold">
+                    {selectedTicket.event.name}
+                  </h3>
+
+                  <QRCodeSVG
+                      value={selectedTicket.ticket.qrCode}
+                      size={220}
+                      level="H"
+                  />
+
+                  <p className="text-sm text-muted-foreground">
+                    Show this QR code at the event entrance
+                  </p>
+                </div>
+            )}
+          </DialogContent>
+        </Dialog>
+        {/* ===== END QR MODAL ===== */}
+
       </div>
   );
 }

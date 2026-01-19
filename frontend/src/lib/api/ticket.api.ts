@@ -9,7 +9,7 @@ export const TicketAPI = {
         return res.data;
     },
 
-    getMyTickets: async (attendeeId: number) => {
+    getMyTickets: async (attendeeId: number): Promise<Ticket[]> => {
         const res = await http.get(`/api/tickets/attendee/${attendeeId}`);
         return res.data;
     },

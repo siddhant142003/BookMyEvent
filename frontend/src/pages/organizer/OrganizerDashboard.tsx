@@ -127,7 +127,7 @@ export default function OrganizerDashboard() {
                 </p>
             ) : (
                 <div className="grid lg:grid-cols-2 gap-4">
-                  {events.slice(0, 3).map((event, index) => (
+                  {events.slice(0, 100).map((event, index) => (
                       <EventCard
                           key={event.id}
                           event={event}

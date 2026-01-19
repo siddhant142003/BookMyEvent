@@ -1,8 +1,6 @@
-import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from '@/components/layout/Header';
 import { StatCard } from '@/components/shared/StatCard';
-import { mockStaffStats, mockEvents } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -17,6 +15,11 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { TicketValidationStatus } from '@/types';
+import { useEffect, useState } from "react";
+import { StaffAPI } from "@/lib/api/staff.api";
+import type { Event } from "@/types/backend";
+import QRCodeScanner from "@/components/staff/QRCodeScanner";
+import { QRCodeSVG } from "qrcode.react";
 
 type ScanResult = {
   id: string;
@@ -27,42 +30,51 @@ type ScanResult = {
   timestamp: Date;
 };
 
-const mockScanHistory: ScanResult[] = [
-  { id: '1', status: 'valid', ticketId: 'TKT-001', attendeeName: 'Sarah Johnson', ticketType: 'VIP Pass', timestamp: new Date() },
-  { id: '2', status: 'valid', ticketId: 'TKT-002', attendeeName: 'Mike Chen', ticketType: 'General Admission', timestamp: new Date(Date.now() - 60000) },
-  { id: '3', status: 'already_used', ticketId: 'TKT-003', attendeeName: 'Emily Davis', ticketType: 'General Admission', timestamp: new Date(Date.now() - 120000) },
-  { id: '4', status: 'valid', ticketId: 'TKT-004', attendeeName: 'James Wilson', ticketType: 'VIP Pass', timestamp: new Date(Date.now() - 180000) },
-];
-
 export default function StaffDashboard() {
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
-  const [scanHistory, setScanHistory] = useState<ScanResult[]>(mockScanHistory);
-  const stats = mockStaffStats;
-  const currentEvent = mockEvents[0];
 
-  // Simulate a scan result
-  const simulateScan = () => {
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+
+  const [scanHistory, setScanHistory] = useState<ScanResult[]>([]);
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [activeEvent, setActiveEvent] = useState<Event | null>(null);
+  const staffScanUrl = window.location.origin + "/staff";
+
+  const handleQrScan = async (qrCode: string) => {
     setIsScanning(true);
     setScanResult(null);
-    
-    setTimeout(() => {
-      const statuses: TicketValidationStatus[] = ['valid', 'valid', 'valid', 'already_used', 'invalid'];
-      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-      
-      const newResult: ScanResult = {
+
+    try {
+      const res = await fetch(
+          `http://localhost:8080/api/tickets/validate/${encodeURIComponent(qrCode)}`
+      );
+
+      const data = await res.json();
+
+      const scan: ScanResult = {
         id: Date.now().toString(),
-        status: randomStatus,
-        ticketId: `TKT-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
-        attendeeName: ['Alex Smith', 'Jordan Lee', 'Taylor Brown', 'Morgan White'][Math.floor(Math.random() * 4)],
-        ticketType: ['General Admission', 'VIP Pass', 'Backstage'][Math.floor(Math.random() * 3)],
+        status: data.status,          // valid / already_used / invalid
+        ticketId: data.ticketId,
+        attendeeName: data.attendeeName,
+        ticketType: data.ticketType,
         timestamp: new Date(),
       };
-      
-      setScanResult(newResult);
-      setScanHistory(prev => [newResult, ...prev]);
+
+      setScanResult(scan);
+      setScanHistory(prev => [scan, ...prev]);
+    } catch (e) {
+      setScanResult({
+        id: Date.now().toString(),
+        status: "invalid",
+        ticketId: "UNKNOWN",
+        attendeeName: "Unknown",
+        ticketType: "Unknown",
+        timestamp: new Date(),
+      });
+    } finally {
       setIsScanning(false);
-    }, 1500);
+    }
   };
 
   const getStatusConfig = (status: TicketValidationStatus) => {
@@ -97,9 +109,28 @@ export default function StaffDashboard() {
     }
   };
 
+  useEffect(() => {
+    const fetchActiveEvent = async () => {
+      try {
+        const event = await StaffAPI.getActiveEvent();
+        setActiveEvent(event);
+      } catch (err) {
+        console.error("Failed to fetch active event", err);
+      }
+    };
+
+    fetchActiveEvent();
+  }, []);
+
+  const stats = {
+    scannedToday: scanHistory.length,
+    validScans: scanHistory.filter(s => s.status === "valid").length,
+    invalidScans: scanHistory.filter(s => s.status !== "valid").length,
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      <Header userRole="staff" userName="Sam Wilson" />
+      <Header userRole="staff" userName={user?.name ?? ""} />
       
       <main className="container py-8">
         {/* Current Event Banner */}
@@ -111,12 +142,22 @@ export default function StaffDashboard() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <Badge className="bg-accent text-accent-foreground mb-2">Now Active</Badge>
-              <h2 className="text-2xl font-display font-bold">{currentEvent.name}</h2>
-              <p className="text-primary-foreground/70">{currentEvent.venue}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-primary-foreground/70">Event Time</p>
-              <p className="font-semibold">{format(currentEvent.start, 'h:mm a')} - {format(currentEvent.end, 'h:mm a')}</p>
+              {activeEvent && (
+                  <>
+                    <h2 className="text-2xl font-display font-bold">
+                      {activeEvent.title}
+                    </h2>
+
+                    <p className="text-primary-foreground/70">
+                      {activeEvent.location}
+                    </p>
+
+                    <p className="font-semibold">
+                      {format(new Date(activeEvent.startDate), 'h:mm a')} -{' '}
+                      {format(new Date(activeEvent.endDate), 'h:mm a')}
+                    </p>
+                  </>
+              )}
             </div>
           </div>
         </motion.div>
@@ -136,64 +177,78 @@ export default function StaffDashboard() {
                 <p className="text-muted-foreground">Scan attendee tickets to validate entry</p>
               </div>
 
-              {/* Scanner Area */}
-              <div className="relative mx-auto w-full max-w-sm aspect-square rounded-2xl border-2 border-dashed border-border bg-secondary/30 flex items-center justify-center mb-6 overflow-hidden">
-                {isScanning ? (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="absolute inset-0 flex flex-col items-center justify-center"
-                  >
-                    <motion.div
-                      animate={{ y: [0, 200, 0] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      className="absolute w-full h-1 bg-accent/50"
-                    />
-                    <ScanLine className="h-20 w-20 text-muted-foreground animate-pulse" />
-                    <p className="mt-4 text-muted-foreground">Scanning...</p>
-                  </motion.div>
-                ) : scanResult ? (
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={scanResult.id}
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.8, opacity: 0 }}
-                      className={`absolute inset-4 rounded-xl ${getStatusConfig(scanResult.status).bg} ${getStatusConfig(scanResult.status).border} border-2 flex flex-col items-center justify-center p-6`}
-                    >
-                      {(() => {
-                        const config = getStatusConfig(scanResult.status);
-                        const Icon = config.icon;
-                        return (
-                          <>
-                            <Icon className={`h-16 w-16 ${config.color} mb-4`} />
-                            <h4 className={`text-xl font-bold ${config.color}`}>{config.label}</h4>
-                            <div className="mt-4 text-center">
-                              <p className="font-semibold">{scanResult.attendeeName}</p>
-                              <p className="text-sm text-muted-foreground">{scanResult.ticketType}</p>
-                              <p className="text-xs text-muted-foreground mt-2">ID: {scanResult.ticketId}</p>
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </motion.div>
-                  </AnimatePresence>
-                ) : (
-                  <div className="text-center">
-                    <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Ready to scan</p>
-                  </div>
-                )}
+              {/* Staff QR Code (scan from mobile) */}
+              <div className="flex flex-col items-center gap-4 mb-6">
+                <p className="text-sm text-muted-foreground">
+                  Scan this QR from your mobile phone
+                </p>
+
+                <div className="bg-white p-4 rounded-xl shadow">
+                  <QRCodeSVG
+                      value={window.location.origin + "/staff"}
+                      size={180}
+                      level="H"
+                      includeMargin
+                  />
+                </div>
               </div>
 
-              <Button 
-                variant="hero" 
-                size="xl" 
-                className="w-full gap-3"
-                onClick={simulateScan}
-                disabled={isScanning}
+              {/* Scanner Area */}
+              <div className="relative mx-auto w-full max-w-sm aspect-square rounded-2xl border-2 border-dashed border-border bg-secondary/30 mb-6 overflow-hidden">
+
+                {cameraActive ? (
+                    <QRCodeScanner
+                        onScan={(qrText) => {
+                          setCameraActive(false);
+                          handleQrScan(qrText);
+                        }}
+                        onError={() => {}}
+                    />
+                ) : scanResult ? (
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                          key={scanResult.id}
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.8, opacity: 0 }}
+                          className={`absolute inset-4 rounded-xl ${getStatusConfig(scanResult.status).bg} ${getStatusConfig(scanResult.status).border} border-2 flex flex-col items-center justify-center p-6`}
+                      >
+                        {(() => {
+                          const config = getStatusConfig(scanResult.status);
+                          const Icon = config.icon;
+                          return (
+                              <>
+                                <Icon className={`h-16 w-16 ${config.color} mb-4`} />
+                                <h4 className={`text-xl font-bold ${config.color}`}>{config.label}</h4>
+                                <div className="mt-4 text-center">
+                                  <p className="font-semibold">{scanResult.attendeeName}</p>
+                                  <p className="text-sm text-muted-foreground">{scanResult.ticketType}</p>
+                                  <p className="text-xs text-muted-foreground mt-2">
+                                    ID: {scanResult.ticketId}
+                                  </p>
+                                </div>
+                              </>
+                          );
+                        })()}
+                      </motion.div>
+                    </AnimatePresence>
+                ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <Camera className="h-16 w-16 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">Ready to scan</p>
+                    </div>
+                )}
+              </div>
+              <Button
+                  variant="hero"
+                  size="xl"
+                  className="w-full gap-3"
+                  onClick={() => {
+                    setScanResult(null);
+                    setCameraActive(true);
+                  }}
               >
-                <ScanLine className="h-6 w-6" />
+              <ScanLine className="h-6 w-6" />
                 {isScanning ? 'Scanning...' : 'Start Scan'}
               </Button>
             </motion.div>

@@ -2,25 +2,20 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { QRCodeSVG } from 'qrcode.react';
 import { CalendarDays, MapPin, TicketIcon, ChevronRight } from 'lucide-react';
-import { Ticket, Event, TicketType } from '@/types';
+import type { Ticket } from '@/types/backend';
+import type { UIEvent } from '@/types/ui-event';
+import type { TicketType } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface TicketCardProps {
   ticket: Ticket;
-  event: Event;
+  event: UIEvent;
   ticketType: TicketType;
   onViewQR?: () => void;
   delay?: number;
 }
-
-const statusStyles: Record<string, string> = {
-  valid: 'bg-success/10 text-success border-success/20',
-  used: 'bg-muted text-muted-foreground',
-  cancelled: 'bg-destructive/10 text-destructive border-destructive/20',
-  expired: 'bg-warning/10 text-warning border-warning/20',
-};
 
 export function TicketCard({ 
   ticket, 
@@ -29,6 +24,9 @@ export function TicketCard({
   onViewQR,
   delay = 0 
 }: TicketCardProps) {
+
+  const ticketStatus = ticket.checkedIn ? 'used' : 'valid';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -45,8 +43,15 @@ export function TicketCard({
         <div className="flex-1 p-6 space-y-4">
           <div className="flex items-start justify-between">
             <div>
-              <Badge variant="outline" className={cn(statusStyles[ticket.status])}>
-                {ticket.status}
+              <Badge
+                  variant="outline"
+                  className={cn(
+                      ticketStatus === 'used'
+                          ? 'bg-muted text-muted-foreground'
+                          : 'bg-success/10 text-success border-success/20'
+                  )}
+              >
+                {ticketStatus}
               </Badge>
               <h3 className="mt-2 text-xl font-bold font-display">{event.name}</h3>
             </div>
@@ -58,7 +63,11 @@ export function TicketCard({
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
               <CalendarDays className="h-4 w-4" />
-              <span>{format(event.start, 'EEEE, MMMM d, yyyy')}</span>
+              <span>
+                {event.start instanceof Date && !isNaN(event.start.getTime())
+                    ? format(event.start, 'EEEE, MMMM d, yyyy')
+                    : 'Date TBD'}
+              </span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <MapPin className="h-4 w-4" />
@@ -75,11 +84,11 @@ export function TicketCard({
         {/* QR Code Section */}
         <div className="relative flex flex-col items-center justify-center gap-4 border-t sm:border-t-0 sm:border-l border-dashed border-border bg-secondary/30 p-6">
           <div className="rounded-xl bg-card p-3 shadow-md">
-            <QRCodeSVG 
-              value={`TICKET:${ticket.id}|EVENT:${event.id}|QR:${ticket.qrCode.id}`}
-              size={100}
-              level="H"
-              includeMargin={false}
+            <QRCodeSVG
+                value={ticket.qrCode ?? `TICKET-${ticket.id}`}
+                size={100}
+                level="H"
+                includeMargin={false}
             />
           </div>
           <Button 

@@ -20,12 +20,27 @@ export interface BackendEvent {
 }
 
 // ===== TICKET =====
-export interface BackendTicket {
+export interface Ticket {
     id: number;
-    qrCode: string;
+    qrCode: string | null;
     checkedIn: boolean;
-    event: BackendEvent;
-    attendee: BackendUser;
+
+    event: {
+        id: number;
+        title: string;
+        description: string;
+        location: string;
+        startDate: string;
+        endDate: string;
+        totalTickets: number;
+        availableTickets: number;
+    };
+
+    attendee: {
+        id: number;
+        name: string;
+        email: string;
+    };
 }
 
 export interface Event {
