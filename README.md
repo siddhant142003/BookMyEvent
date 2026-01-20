@@ -58,3 +58,57 @@ Ensure Docker and Docker Compose are installed on your system.
 # Clone the repository
 git clone <repository-url>
 cd BookMyEvent
+# Start all services (frontend, backend, database)
+docker-compose up --build
+Once the containers are running:
+
+Frontend will be available at http://localhost:3000
+
+Backend will be available at http://localhost:8080
+
+To stop the application:
+
+bash
+Copy code
+docker-compose down
+
+Option 2: Run Without Docker (Manual Setup)
+Backend (Spring Boot)
+cd backend
+./gradlew clean bootRun
+
+
+The backend server will start on http://localhost:8080
+.
+
+Frontend (React)
+cd frontend
+npm install
+npm run dev
+
+
+The frontend will start on http://localhost:3000
+.
+
+Database (PostgreSQL)
+
+Ensure PostgreSQL is running locally and create a database (e.g., eventdb). Update the database credentials in the backend configuration file if required.
+
+Hosting and Service Ports
+Service	Host	Port
+Frontend	http://localhost
+	3000
+Backend	http://localhost
+	8080
+Database	localhost	5432
+Security and Reliability
+
+Authentication is handled using Google OAuth with server-side token verification. Ticket booking operations are concurrency-safe, ensuring accurate ticket counts under high load. QR code validation is performed server-side to prevent reuse, duplication, or forgery.
+
+Future Enhancements
+
+The system can be extended to include payment gateway integration, advanced analytics for organizers, email-based ticket delivery, administrative dashboards, and support for multiple ticket types and pricing tiers.
+
+Conclusion
+
+BookMyEvent demonstrates a production-ready event ticketing solution combining a modern frontend, a secure and scalable backend, and containerized deployment. The project effectively addresses real-world challenges such as authentication, concurrency handling, and secure access validation, making it suitable for both academic evaluation and practical use.
